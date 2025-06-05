@@ -11,7 +11,8 @@ local parser = {}
 function parser.ParseTTML(data, displayType) -- Data = TTML, displayType = 2 (sentance by sentance) or 3 (syllable)
 	local result = {
 		["Lenght"] = 0,
-		["Synced-Lyrics"] = {}
+		["Synced-Lyrics"] = {},
+		["Speaker"] = {}
 	}
 	
 	-- Prep Song
@@ -48,9 +49,13 @@ function parser.ParseTTML(data, displayType) -- Data = TTML, displayType = 2 (se
 		seperatedLines = parser.splitLines(songSections)
 		
 		for _, line in seperatedLines do
+			
+			local text = line.Line
+			local speaker = line.Speaker
 
-			table.insert(result["Synced-Lyrics"], parser.extractLyricData(line))
-
+			table.insert(result["Synced-Lyrics"], parser.extractLyricData(text))
+			table.insert(result.Speaker, speaker)
+			
 		end
 		
 	end
@@ -107,9 +112,9 @@ function parser.extractLyricData(line)
 	
 	local lineTextData = {}
 	
-	for begin, ending, lyric in line:gmatch('<span begin="([^"]+)" end="([^"]+)">(.-)</span>') do
+	for begin, ending, lyric, spaceCheck in line:gmatch('<span begin="([^"]+)" end="([^"]+)">(.-)</span>(%s?)') do
 		
-		table.insert(lineTextData, {Start = parser.convertToMS(parser.checkForSeconds(begin)), End = parser.convertToMS(parser.checkForSeconds(ending)), Text = lyric})
+		table.insert(lineTextData, {Start = parser.convertToMS(parser.checkForSeconds(begin)), End = parser.convertToMS(parser.checkForSeconds(ending)), Text = lyric, Syllable = (spaceCheck ~= " ")})
 	end
 	
 	return lineTextData
@@ -119,7 +124,7 @@ end
 function parser.extractLineData(line)
 
 	local lineTextData = {}
-
+	
 	for begin, ending, lyric in line:gmatch('<p begin="([^"]+)" end="([^"]+)">(.-)</p>') do
 
 		table.insert(lineTextData, {Start = parser.convertToMS(parser.checkForSeconds(begin)), End = parser.convertToMS(parser.checkForSeconds(ending)), Text = lyric})
@@ -135,8 +140,10 @@ function parser.splitLines(data)
 
 	for _, line in data do
 		
-		for text in line:gmatch('<p.-">(.-)</p>') do
-			table.insert(lines, text)
+		for agent, text in line:gmatch('<p.-ttm:agent="([^"]+)".->(.-)</p>') do
+			print(text)
+			local speaker = string.sub(agent, 2, 2)
+			table.insert(lines, {Line = text, Speaker = speaker})
 		end
 		
 	end
